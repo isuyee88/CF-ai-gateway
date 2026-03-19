@@ -1,0 +1,20 @@
+{
+  "name": "cloudflare-works-openai-gateway",
+  "version": "1.0.0",
+  "description": "Cloudflare Works OpenAI format API gateway",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "itty-router": "^4.0.28"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250415.0",
+    "axios": "^1.13.6",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.54.0"
+  }
+}

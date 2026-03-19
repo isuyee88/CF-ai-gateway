@@ -1,0 +1,17 @@
+name = "cloudflare-works-openai-gateway"
+type = "worker"
+compatibility_date = "2026-03-19"
+main = "src/index.ts"
+
+[env]
+AI_GATEWAY_URL = "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/ai/run"
+ACCOUNT_ID = "$ACCOUNT_ID"
+CLOUDFLARE_API_KEY = "$CLOUDFLARE_API_KEY"
+
+[[kv_namespaces]]
+binding = "API_KEYS"
+id = "e4b54c7c3a184a2cb1483303b7948aff"
+preview_id = "e4b54c7c3a184a2cb1483303b7948aff"
+
+[build]
+command = "npm run build"
