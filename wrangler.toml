@@ -11,3 +11,7 @@ binding = "AI"
 
 [build]
 command = "npm run build"
+
+[observability]
+enabled = true
+logs = { enabled = true, persist = true, invocation_logs = true }
