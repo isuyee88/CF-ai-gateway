@@ -1,26 +1,17 @@
-import { Router, type IRequest } from 'itty-router';
-
-// 定义任务类型
 type TaskType = 'code' | 'text' | 'image';
 
-// 定义模型映射
 const modelMap: Record<TaskType, string> = {
-  code: 'code-generation-model',
-  text: 'text-generation-model',
-  image: 'image-generation-model'
+  code: '@cf/mistral/mistral-7b-instruct-v0.1',
+  text: '@cf/meta/llama-3-8b-instruct',
+  image: '@cf/stabilityai/stable-diffusion-xl-base-1.0'
 };
 
-// 创建路由器
-const router = Router();
-
-// 验证 API key
-async function validateApiKey(request: IRequest): Promise<boolean> {
+async function validateApiKey(request: Request): Promise<boolean> {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader) return false;
-  
+
   const apiKey = authHeader.replace('Bearer ', '');
-  
-  // 从 KV 存储中验证 API key
+
   try {
     const storedKey = await API_KEYS.get(apiKey);
     return storedKey !== null;
@@ -30,12 +21,9 @@ async function validateApiKey(request: IRequest): Promise<boolean> {
   }
 }
 
-
-
-// 转发请求到 AI 网关
 async function forwardToAIGateway(model: string, requestBody: any): Promise<any> {
   const aiGatewayUrl = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run`;
-  
+
   try {
     const response = await fetch(aiGatewayUrl, {
       method: 'POST',
@@ -48,11 +36,11 @@ async function forwardToAIGateway(model: string, requestBody: any): Promise<any>
         inputs: requestBody
       })
     });
-    
+
     if (!response.ok) {
       throw new Error(`AI Gateway request failed with status ${response.status}`);
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error forwarding to AI Gateway:', error);
@@ -60,9 +48,7 @@ async function forwardToAIGateway(model: string, requestBody: any): Promise<any>
   }
 }
 
-// 转换响应为 OpenAI 格式
 function convertToOpenAIFormat(response: any): any {
-  // 转换逻辑
   return {
     id: `chatcmpl-${Date.now()}`,
     object: 'chat.completion',
@@ -86,10 +72,8 @@ function convertToOpenAIFormat(response: any): any {
   };
 }
 
-// 处理 chat completions 请求
-router.post('/v1/chat/completions', async (request: IRequest) => {
+async function handleChatCompletions(request: Request): Promise<Response> {
   try {
-    // 验证 API key
     const isValid = await validateApiKey(request);
     if (!isValid) {
       return new Response(JSON.stringify({
@@ -100,19 +84,14 @@ router.post('/v1/chat/completions', async (request: IRequest) => {
         }
       }), {
         status: 401,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
     }
-    
-    // 解析请求体
+
     const requestBody = await request.json() as any;
-    
-    // 识别任务类型
+
     let taskType: TaskType = 'text';
     try {
-      // 从自定义元数据中获取任务类型
       const taskTypeFromBody = requestBody.metadata?.task_type || requestBody.task_type;
       if (taskTypeFromBody === 'code' || taskTypeFromBody === 'text' || taskTypeFromBody === 'image') {
         taskType = taskTypeFromBody;
@@ -120,20 +99,13 @@ router.post('/v1/chat/completions', async (request: IRequest) => {
     } catch (error) {
       console.error('Error parsing task type:', error);
     }
-    
-    // 选择模型
+
     const model = modelMap[taskType];
-    
-    // 转发到 AI 网关
     const aiResponse = await forwardToAIGateway(model, requestBody);
-    
-    // 转换响应格式
     const openaiResponse = convertToOpenAIFormat(aiResponse);
-    
+
     return new Response(JSON.stringify(openaiResponse), {
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
     console.error('Error handling request:', error);
@@ -145,21 +117,31 @@ router.post('/v1/chat/completions', async (request: IRequest) => {
       }
     }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
   }
-});
+}
 
-// 404 处理
-router.all('*', () => {
-  return new Response('Not Found', {
-    status: 404
+async function handleRequest(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  const path = url.pathname;
+
+  if (request.method === 'POST' && path === '/v1/chat/completions') {
+    return handleChatCompletions(request);
+  }
+
+  return new Response(JSON.stringify({
+    error: {
+      message: 'Not found',
+      type: 'invalid_request_error',
+      code: 'not_found'
+    }
+  }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json' }
   });
-});
+}
 
-// 导出 Worker
 export default {
-  fetch: router.handle
+  fetch: handleRequest
 };
