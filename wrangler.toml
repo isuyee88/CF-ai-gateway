@@ -1,4 +1,4 @@
-name = "cloudflare-works-openai-gateway"
+name = "cf-ai-gateway"
 compatibility_date = "2026-03-19"
 main = "src/index.ts"
 
